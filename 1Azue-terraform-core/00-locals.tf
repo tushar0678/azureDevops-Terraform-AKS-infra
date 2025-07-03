@@ -2,8 +2,8 @@
 locals {
 
   #Refactoring
-  businessfunction      = "gs"
-  service               = "plm"
+  businessfunction      = "TS"
+  service               = "AZ"
   application           = "aks"
   region                = "apac"
   deployedloc           = var.location == "uksouth" ? "uks" : ""

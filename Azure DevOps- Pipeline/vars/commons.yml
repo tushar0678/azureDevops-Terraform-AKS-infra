@@ -1,9 +1,9 @@
    variables:
 
     - name: businessfunction
-      value: 'gs'
+      value: 'TS'
     - name: service
-      value: 'plm'
+      value: 'AZ'
     - name: application
       value: 'aks'
     - name: appname
