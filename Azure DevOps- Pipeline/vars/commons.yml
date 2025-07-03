@@ -1,0 +1,26 @@
+   variables:
+
+    - name: businessfunction
+      value: 'gs'
+    - name: service
+      value: 'plm'
+    - name: application
+      value: 'aks'
+    - name: appname
+      value: '${{ variables.application }}'
+    - name: rsgp_lower
+      value: '${{ variables.businessfunction }}-${{ variables.service }}-${{ variables.application }}'
+    - name: rsgptarget
+      value: '${{ upper(variables.rsgp_lower) }}'
+    - name: rsgpbackend
+      value: '${{ upper(variables.rsgp_lower) }}-CORE'
+    - name: cluster
+      value: '${{ upper(variables.rsgp_lower) }}-AKSC'
+    - name: AZfiles
+      value: '${{ variables.application }}files'
+    - name: 'AZKeys'
+      value: '${{ variables.application }}keys'
+    - name: serviceConnection
+      value: 'ENOVIA AKS ADO to DEV-GS-ENOVIA SUB'
+    - name: terraformVersion
+      value: '0.13'

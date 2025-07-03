@@ -1,0 +1,7 @@
+variables:
+    - name: environment
+      value: 'dev'
+    - name: location
+      value: 'uksouth'
+    - name: deployedloc
+      value: 'uks'

@@ -1,0 +1,23 @@
+variables:
+    - name: acrsecret
+      value: 'acrsecret'
+    - name: acr
+      value: '${{ variables.application }}acr'
+    - name: namespace
+      value: 'default'
+    - name: DB_FQDN
+      value: 'db'
+    - name: TARGET_FQDN
+      value: 'dev-plm3dspace.int.elekta.com'
+    - name: SOURCE_FQDN
+      value: 'elektadev.technia.net'
+    - name: PROXY_IP
+      value: '10.1.3.254'
+    - name: SMTP_FQDN
+      value: 'smtp'
+    - name: storageaccountname
+      value: 'ZGV2Z3NwbG1ha3NkZXY='
+    - name: storageaccountkey
+      value: 'UlVRK0xLSndETnEvQ2pwQVg0SVhEN1VaMFhOYy9aTWVnSk5IUjFkbzl6cUYvUHZ3T3lSYlY5a0p6dG15ZmlCVWlFZmxFNUcyazZ2aCtBU3Q1ZXV0VWc9PQ=='
+    - name: SA_PASSWORD
+      value: 'syxqn6Lwau'

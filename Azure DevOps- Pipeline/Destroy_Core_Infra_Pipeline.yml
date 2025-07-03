@@ -1,0 +1,67 @@
+#pipeline triggered initially for locked core resources creation
+trigger:
+  branches:
+    include:
+    - DSO-257
+    ##add additional branches
+    #releases/*
+  paths:
+    include:
+    - terraform-core/*
+
+resources:
+- repo: self
+
+pool: 'Agent'
+
+variables:
+  serviceConnection: 'Personal_SC'
+  bkstrg: 'rg1'
+  bkstname: 'nbvccvb'
+  bkstcont: 'tfstate'
+  bkstKey: 'terraform.tfstate'
+
+  workingDir: '$(System.DefaultWorkingDirectory)/terraform-core'
+  
+
+
+stages:
+  - stage: TerraformDestroy
+    jobs:
+      - job: validate
+        continueOnError: false
+        steps:
+            - task: ms-devlabs.custom-terraform-tasks.custom-terraform-installer-task.TerraformInstaller@0
+              displayName: Installing Terraform
+              inputs:
+                terraformVersion: 'latest'
+            - task: TerraformTaskV3@3
+              displayName: Initializing Terraform 
+              inputs:
+                provider: 'azurerm'
+                command: 'init'
+                backendServiceArm: $(serviceConnection)
+                workingDirectory: $(workingDir)
+                backendAzureRmResourceGroupName: $(bkstrg)
+                backendAzureRmStorageAccountName: $(bkstname)
+                backendAzureRmContainerName: $(bkstcont)
+                backendAzureRmKey: $(bkstKey)
+
+            #- task: TerraformTaskV3@3
+            #  displayName: Indentation Adjust
+            #  inputs:
+            #    provider: 'azurerm'
+            #    command: 'Custom'
+            #    customCommand: 'fmt'
+            #    outputTo: 'console'
+            #    environmentServiceNameAzureRM: 'Personal_SC'
+
+
+            - task: TerraformTaskV3@3
+              displayName: Destroying Terraform Infra
+              inputs:
+                provider: 'azurerm'
+                command: 'destroy'
+                workingDirectory: '$(workingDir)'
+                environmentServiceNameAzureRM: 'Personal_SC'
+

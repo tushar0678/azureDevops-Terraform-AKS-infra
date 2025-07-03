@@ -1,0 +1,11 @@
+#validate that the environment variables are correctly retrieved
+steps:
+  - script: |
+      echo "$(environment)"
+      echo "$(location)"
+      echo "$(deployedloc)"
+      echo "$(acr)"
+      echo "$(acrsecret)"
+      echo "$(DB_FQDN)"
+      echo "$(TARGET_FQDN)"
+      echo "$(PROXY_IP)"

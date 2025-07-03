@@ -1,0 +1,110 @@
+#pipeline triggered initially for locked core resources creation
+trigger:
+  branches:
+    include:
+    - DSO-257
+
+  paths:
+    include:
+    - terraform-core/*
+
+resources:
+- repo: self
+
+pool: 'Agent'
+
+#parameters:
+#  environment: 'dev'
+#  location: 'uksouth'
+
+variables:
+  env: 'dev'
+  location: 'uksouth'
+  serviceConnection: 'Personal_SC'
+  bkstrg: 'rg1'
+  bkstname: 'nbvccvb'
+  bkstcont: 'tfstate'
+  bkstKey: 'terraform.tfstate'
+  workingDir: '$(System.DefaultWorkingDirectory)/terraform-core'
+  
+
+
+stages:
+  - stage: TerraformScriptValidation
+    jobs:
+      - job: validate
+        continueOnError: false
+        steps:
+            - task: ms-devlabs.custom-terraform-tasks.custom-terraform-installer-task.TerraformInstaller@0
+              displayName: InstallingTerraform
+              inputs:
+                terraformVersion: 'latest'
+            - task: TerraformTaskV3@3
+              displayName: InitializingTerraform
+              inputs:
+                provider: 'azurerm'
+                command: 'init'
+                backendServiceArm: $(serviceConnection)
+                workingDirectory: $(workingDir)
+                backendAzureRmResourceGroupName: $(bkstrg)
+                backendAzureRmStorageAccountName: $(bkstname)
+                backendAzureRmContainerName: $(bkstcont)
+                backendAzureRmKey: 'core-$(env).tfstate'
+             
+            - task: TerraformTaskV3@3
+              displayName: ValidatingTerraformScript 
+              inputs:
+                provider: 'azurerm'
+                workingDirectory: $(workingDir)
+                command: 'validate'
+
+  - stage: ResourceProvision
+    condition: succeeded('TerraformScriptValidation')
+    dependsOn: TerraformScriptValidation
+    jobs:
+      - job: apply
+        steps:
+            - task: ms-devlabs.custom-terraform-tasks.custom-terraform-installer-task.TerraformInstaller@0
+              displayName: tfinstaller
+              inputs:
+                terraformVersion: 'latest'
+            - task: TerraformTaskV3@3
+              displayName: InitializingTerraform
+              inputs:
+                provider: 'azurerm'
+                command: 'init'
+                workingDirectory: $(workingDir)
+                backendServiceArm: $(serviceConnection)
+                backendAzureRmResourceGroupName: $(bkstrg)
+                backendAzureRmStorageAccountName: $(bkstname)
+                backendAzureRmContainerName: $(bkstcont)
+                backendAzureRmKey: 'core-$(env).tfstate'
+
+
+            - task: TerraformTaskV3@3
+              displayName: ResouceDeploymentPlan
+              inputs:
+                provider: 'azurerm'
+                workingDirectory: $(workingDir)
+                command: 'plan'
+                environmentServiceNameAzureRM: $(serviceConnection)
+
+          #  - task: Bash@3
+          #    displayName: 'Terraform Graph'
+          #    inputs:
+          #      targetType: 'inline'
+          #      script: |
+          #        sudo apt-get update -y
+          #        sudo apt-get install graphviz -y
+          #        terraform graph | dot -Tpng > terra-infra.png
+          #      workingDirectory: $(workingDir)
+          #      allowTelemetryCollection: false
+                
+            - task: TerraformTaskV3@3
+              displayName: Apply
+              inputs:
+                workingDirectory: $(workingDir)
+                provider: 'azurerm'
+                command: 'apply'
+                environmentServiceNameAzureRM: $(serviceConnection)
+    

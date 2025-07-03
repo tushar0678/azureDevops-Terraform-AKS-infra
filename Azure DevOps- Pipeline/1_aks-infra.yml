@@ -1,0 +1,209 @@
+#pipeline triggered for any IAC changes
+trigger:
+  branches:
+    include:
+    - main
+  paths:
+    include:
+    - terraform-infra/*
+
+resources:
+- repo: self
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+# Parameters
+parameters:
+- name: isRemovable #should terraform destroy be performed
+  displayName: isRemovable
+  type: boolean
+  default: false
+- name: isRelease
+  displayName: isRelease
+  type: boolean
+  default: false
+- name: environment
+  displayName: environment
+  type: string
+  default: 'dev'
+  values:
+    - 'dev'
+    - 'uat'
+    - 'prod'
+- name: location
+  displayName: location
+  type: string
+  default: 'uksouth'
+
+# Stage-1: Preconditions
+## Step-1: Assert that the current branch is based off of main
+## Step-2: Publish Artifacts to Pipeline (Pipeline artifacts provide a way to share files between stages in a pipeline or between different pipelines.)
+## Step-3: Install Latest Terraform (0.13.5) (Ideally not needed if we use default Ubuntu Agents)
+## Step-4: Validate Terraform Manifests (terraform init, terraform validate)
+stages:
+# ================================================================================
+# This stage runs pre-conditions at the start of the pipeline
+# ================================================================================
+- stage: Preconditions
+  pool:
+    vmImage: ubuntu-latest
+  jobs:
+    #Pre-condition: assert that the current branch is based off of main
+    - job: Validate
+      dependsOn: []
+      steps:
+      - bash: |
+          # Pre-condition: assert that the current branch is based off of main
+          if ! git merge-base --is-ancestor HEAD origin/main; then
+            echo "Only prior main commits are allowed as releases. Exiting..." >&2
+            exit 1
+          fi
+        failOnStderr: true
+        displayName: 'Ensure branch is a valid release candidate'
+        condition: '${{ parameters.isRelease }}'
+    # Run terraform validation to detect .tf issues early.
+    - job: TerraformValidateJob
+      dependsOn: [Validate]
+      continueOnError: false
+      steps:
+      - checkout: self
+      - task: PublishPipelineArtifact@1
+        displayName: Publish Artifacts
+        inputs:
+          targetPath: '$(System.DefaultWorkingDirectory)/terraform-infra'
+          artifact: 'terraform-infra-out'
+          publishLocation: 'pipeline'
+      - task: TerraformInstaller@0
+        displayName: Terraform Install
+        inputs:
+          terraformVersion: 'latest'
+      - task: Bash@3
+        displayName: 'Terraform Init'
+        inputs:
+          targetType: 'inline'
+          script: |
+            terraform init -backend=false
+          workingDirectory: '$(System.DefaultWorkingDirectory)/terraform-infra'
+          allowTelemetryCollection: false
+      - task: TerraformTaskV3@3
+        displayName: Terraform Validate
+        inputs:
+          provider: 'azurerm'
+          command: 'validate'
+          workingDirectory: '$(System.DefaultWorkingDirectory)/terraform-infra'
+          allowTelemetryCollection: false
+
+# Stage-2: Deploy IAC
+## Step-1: Define Variables for environments
+## Step-2: Download SSH Secure File from the relevant Keyvault
+## Step-3: Terraform Initialize (State Storage to store in Azure Storage Account for Dev AKS Cluster)
+## Step-4: Terraform Plan (Create Plan)
+## Step-5: Terraform Apply (Use the plan created in previous step)
+# ================================================================================
+# This stage deploy the IACinfrastructure
+# ================================================================================
+- stage: DeployIAC
+  dependsOn:
+    - "Preconditions"
+  #condition: and(not(failed()), not(canceled()), eq(variables['build.sourceBranch'], 'refs/heads/main'))
+  jobs:
+    - deployment: DeployIAC
+      displayName: DeployIAC
+      pool:
+        vmImage: 'ubuntu-latest'
+      environment: '${{ parameters.environment }}'
+      variables:
+        - template: 'vars/commons.yml'
+        - template: 'vars/${{ parameters.environment }}.yml'
+      strategy:
+        runOnce:
+          deploy:
+            steps:
+            - task: TerraformTaskV3@3
+              displayName: Terraform Init
+              inputs:
+                provider: 'azurerm'
+                command: 'init'
+                workingDirectory: '$(Pipeline.Workspace)/terraform-infra-out'
+                backendServiceArm: '${{ variables.serviceConnection }}'
+                backendAzureRmResourceGroupName: '${{ upper(variables.environment) }}-${{ variables.rsgpbackend }}'
+                backendAzureRmStorageAccountName: '${{ lower(variables.environment) }}${{ lower(variables.deployedloc) }}${{ variables.AZfiles }}'
+                backendAzureRmContainerName: 'tfstatefiles'
+                backendAzureRmKey: 'aks-${{ lower(parameters.environment) }}.tfstate'
+                allowTelemetryCollection: false
+            - task: TerraformTaskV3@3
+              displayName: Terraform Plan
+              inputs:
+                provider: 'azurerm'
+                command: 'plan'
+                workingDirectory: '$(Pipeline.Workspace)/terraform-infra-out'
+                commandOptions: '-var environment=${{ lower(parameters.environment) }} -var location=${{ lower(variables.location) }} -out $(Pipeline.Workspace)/terraform-infra-out/${{ lower(parameters.environment) }}-$(Build.BuildId).out'
+                environmentServiceNameAzureRM: '${{ variables.serviceConnection }}'
+                allowTelemetryCollection: false
+            - task: TerraformTaskV3@3
+              displayName: Terraform apply
+              inputs:
+                provider: 'azurerm'
+                command: 'apply'
+                commandOptions: '$(Pipeline.Workspace)/terraform-infra-out/${{ parameters.environment }}-$(Build.BuildId).out'
+                workingDirectory: '$(Pipeline.Workspace)/terraform-infra-out'
+                environmentServiceNameAzureRM: '${{ variables.serviceConnection }}'
+                allowTelemetryCollection: false
+            - task: PublishPipelineArtifact@1
+              displayName: Publish Artifacts
+              inputs:
+                targetPath: '$(Pipeline.Workspace)/terraform-infra-out/${{ parameters.environment }}-$(Build.BuildId).out'
+                artifact: 'terraform-infra-plan'
+                publishLocation: 'pipeline'
+
+# Stage-3: Delete Resources created
+## Step-1: Perform Terraform Delete to validate that the core resources are not deleted...
+# ================================================================================
+# This stage remove the IAC infrastructure
+# ================================================================================
+- stage: DestroyIAC
+  dependsOn:
+    - "DeployIAC"
+  condition: '${{ parameters.isRemovable }}'
+  jobs:
+    - job: DestroyIAC
+      displayName: DestroyIAC
+      pool:
+        vmImage: 'ubuntu-latest'
+      variables:
+        - template: 'vars/commons.yml'
+        - template: 'vars/${{ parameters.environment }}.yml'
+      steps:
+      - download: current
+        artifact: terraform-infra-out
+      - task: TerraformTaskV3@3
+        displayName: Terraform Init
+        inputs:
+          provider: 'azurerm'
+          command: 'init'
+          workingDirectory: '$(Pipeline.Workspace)/terraform-infra-out'
+          backendServiceArm: '${{ variables.serviceConnection }}'
+          backendAzureRmResourceGroupName: '${{ upper(variables.environment) }}-${{ variables.rsgpbackend }}'
+          backendAzureRmStorageAccountName: '${{ lower(variables.environment) }}${{ lower(variables.deployedloc) }}${{ variables.AZfiles }}'
+          backendAzureRmContainerName: 'tfstatefiles'
+          backendAzureRmKey: 'aks-${{ lower(parameters.environment) }}.tfstate'
+          allowTelemetryCollection: false
+      - task: TerraformTaskV3@3
+        displayName: Terraform Plan
+        inputs:
+          provider: 'azurerm'
+          command: 'plan'
+          workingDirectory: '$(Pipeline.Workspace)/terraform-infra-out'
+          commandOptions: '-var environment=${{ lower(parameters.environment) }} -var location=${{ lower(variables.location) }} -out $(Pipeline.Workspace)/terraform-infra-out/${{ lower(parameters.environment) }}-$(Build.BuildId).out'
+          environmentServiceNameAzureRM: '${{ variables.serviceConnection }}'
+          allowTelemetryCollection: false
+      - task: TerraformTaskV3@3
+        displayName: Terraform destroy
+        inputs:
+          provider: 'azurerm'
+          command: 'destroy'
+          commandOptions: '-var environment=${{ lower(parameters.environment) }} -var location=${{ lower(variables.location) }}'
+          workingDirectory: '$(Pipeline.Workspace)/terraform-infra-out'
+          environmentServiceNameAzureRM: '${{ variables.serviceConnection }}'
+          allowTelemetryCollection: false
