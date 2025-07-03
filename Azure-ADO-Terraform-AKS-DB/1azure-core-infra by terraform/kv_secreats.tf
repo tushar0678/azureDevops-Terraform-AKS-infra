@@ -21,7 +21,7 @@ resource "azurerm_key_vault_secret" "Secr_sqlpwd" {
   content_type = "string"
   key_vault_id = azurerm_key_vault.kv.id
   name         = "sqlpwd"
-  value        = "Technia#200*"
+  value        = "tushar#200*"
   depends_on = [
     azurerm_key_vault.kv,
   ]
