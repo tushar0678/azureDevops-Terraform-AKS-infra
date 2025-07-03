@@ -1,2 +1,4 @@
+Deploy Azure Infra with AKS using Terraform and Azure DevOps Pipeline.
+
 1. Deploy "1Azue-terraform-core resources" using "Azure DevOps- Pipeline/0_aks-core.yml" pipeline.
 2. Deploy "2azure-terraform-infra" using "Azure DevOps- Pipeline/1_aks-infra.yml" pipeline.
