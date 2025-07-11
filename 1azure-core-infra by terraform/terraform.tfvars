@@ -1,5 +1,5 @@
 location    = "uksouth"
-environment = "ghhgssxdsdcj"
+environment = "Dev"
 #tags        = [ "dev", "aks"]
 location1    = "australia central"
 

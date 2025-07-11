@@ -3,7 +3,7 @@ resource "azurerm_monitor_action_group" "az_mot" {
   resource_group_name = local.rsgpcoreprefix
   short_name          = "recalert1"
   email_receiver {
-    email_address           = "claude.tsarafidy@technia.com"
+    email_address           = "TusharShukla211@gmail.com"
     name                    = "Email_-EmailAction-"
     use_common_alert_schema = true
   }
