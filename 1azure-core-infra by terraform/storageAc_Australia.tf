@@ -11,12 +11,12 @@ resource "azurerm_storage_account" "storage_australia" {
 
 resource "azurerm_storage_container" "Con_install" {
   name                 = "install"
-  storage_account_name = "${azurerm_storage_account.storage_australia.name}"
+  storage_account_id = "${azurerm_storage_account.storage_australia.id}"
 }
 
 
 resource "azurerm_storage_share" "ffsharefiles" {
   name                 = "files"
   quota                = 1
-  storage_account_name = "${azurerm_storage_account.storage_australia.name}"
+  storage_account_id = "${azurerm_storage_account.storage_australia.id}"
 }

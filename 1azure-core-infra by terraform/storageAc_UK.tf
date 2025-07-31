@@ -11,30 +11,30 @@ resource "azurerm_storage_account" "storage_uk" {
 
 resource "azurerm_storage_container" "databases" {
   name                 = "databases"
-  storage_account_name = "${azurerm_storage_account.storage_uk.name}"
+  storage_account_id = "${azurerm_storage_account.storage_uk.id}"
 }
 resource "azurerm_storage_container" "blob" {
   container_access_type = "blob"
   name                  = "test"
-  storage_account_name  = "${azurerm_storage_account.storage_uk.name}"
+  storage_account_id  = "${azurerm_storage_account.storage_uk.id}"
 }
 
 resource "azurerm_storage_container" "tfstatefiles" {
   name                 = "tfstatefiles"
-  storage_account_name = "${azurerm_storage_account.storage_uk.name}"
+  storage_account_id = "${azurerm_storage_account.storage_uk.id}"
 }
 resource "azurerm_storage_container" "dbs" {
   name                 = "dbs"
-  storage_account_name = "${azurerm_storage_account.storage_uk.name}"
+  storage_account_id = "${azurerm_storage_account.storage_uk.id}"
 }
 resource "azurerm_storage_share" "files1" {
   name                 = "files"
   quota                = 5 #GB
-  storage_account_name = "${azurerm_storage_account.storage_uk.name}"
+  storage_account_id = "${azurerm_storage_account.storage_uk.id}"
 }
 
 resource "azurerm_storage_share" "webapp" {
   name                 = "webapp"
   quota                = 1
-  storage_account_name = "${azurerm_storage_account.storage_uk.name}"
+  storage_account_id = "${azurerm_storage_account.storage_uk.id}"
 }
