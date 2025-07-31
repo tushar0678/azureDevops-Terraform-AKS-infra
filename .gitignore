@@ -1,0 +1,27 @@
+
+**/*.exe
+**/*.terraform
+**/*.hcl
+**/*.tfstate
+**/*.backup
+1azure-core-infra by terraform/.terraform/providers/registry.terraform.io/hashicorp/azurerm/4.38.1/windows_386
+1azure-core-infra by terraform/.terraform/
+
+
+echo '*.tfstate' >> .gitignore
+echo '*.tfstate.backup' >> .gitignore
+git add .gitignore
+git commit -m "Ignore Terraform state files"
+
+
+1azure-core-infra by terraform/.terraform/
+1azure-core-infra by terraform/*.tfstate
+1azure-core-infra by terraform/*.tfstate.*
+1azure-core-infra by terraform/.terraform.lock.hcl
+
+
+
+azureDevops-Terraform-AKS-infra-main/.terraform/
+azureDevops-Terraform-AKS-infra-main/*.tfstate
+azureDevops-Terraform-AKS-infra-main/*.tfstate.*
+azureDevops-Terraform-AKS-infra-main/.terraform.lock.hcl
